@@ -1,0 +1,52 @@
+{% extends 'base.html' %}
+
+{% block title %}Загрузка файлов - {{ block.super }}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-6 mx-auto">
+        <h2 class="mb-4">Загрузка JSON файлов</h2>
+        
+        <div class="card">
+            <div class="card-body">
+                <form method="post" enctype="multipart/form-data" novalidate>
+                    {% csrf_token %}
+                    
+                    <div class="mb-3">
+                        {{ form.file.label_tag }}
+                        {{ form.file }}
+                        {% if form.file.errors %}
+                            <div class="text-danger">{{ form.file.errors }}</div>
+                        {% endif %}
+                        <div class="form-text">{{ form.file.help_text }}</div>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary">Загрузить JSON файл</button>
+                </form>
+            </div>
+        </div>
+        
+        <div class="mt-4">
+            <h5>Требования к JSON файлам:</h5>
+            <ul>
+                <li>Должен содержать валидный JSON с метаданными фотографий</li>
+                <li>Обязательные поля: filename, format, file_size, width, height</li>
+                <li>Файлы автоматически проверяются на валидность</li>
+                <li>Невалидные файлы автоматически удаляются</li>
+            </ul>
+            
+            <h6>Пример структуры JSON:</h6>
+            <pre class="bg-light p-3 rounded">
+{
+  "filename": "photo1.jpg",
+  "format": "JPEG",
+  "file_size": 2048576,
+  "width": 1920,
+  "height": 1080,
+  "camera_make": "Canon",
+  "camera_model": "EOS 5D Mark IV"
+}</pre>
+        </div>
+    </div>
+</div>
+{% endblock %}

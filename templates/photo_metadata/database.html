@@ -1,0 +1,51 @@
+{% extends 'base.html' %}
+
+{% block title %}Записи в БД - {{ block.super }}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h2 class="mb-4">Записи в базе данных</h2>
+        
+        {% if records %}
+            <div class="table-responsive">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Файл</th>
+                            <th>Формат</th>
+                            <th>Размер</th>
+                            <th>Разрешение</th>
+                            <th>Камера</th>
+                            <th>Дата создания</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for record in records %}
+                            <tr>
+                                <td><strong>{{ record.filename }}</strong></td>
+                                <td>{{ record.format }}</td>
+                                <td>{{ record.file_size }} байт</td>
+                                <td>{{ record.width }}×{{ record.height }}</td>
+                                <td>
+                                    {% if record.camera_make or record.camera_model %}
+                                        {{ record.camera_make }} {{ record.camera_model }}
+                                    {% else %}
+                                        <span class="text-muted">Не указано</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ record.created_date|date:"d.m.Y H:i" }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="alert alert-info">
+                <h4>Записи не найдены</h4>
+                <p>В базе данных пока нет записей о метаданных фотографий.</p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
