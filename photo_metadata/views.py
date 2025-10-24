@@ -1,59 +1,94 @@
-from django.shortcuts import render
-
-from django.shortcuts import render, redirect
+from django.shortcuts import render, redirect, get_object_or_404
 from django.http import HttpResponse, JsonResponse
 from django.contrib import messages
 from django.core.files.storage import FileSystemStorage
+from django.db import IntegrityError
+from django.db import models 
 import os
 import json
 
-from .forms import PhotoMetadataForm, FileUploadForm
+from .forms import PhotoMetadataForm, FileUploadForm, EditPhotoMetadataForm
 from .models import PhotoMetadata, ImportedFile
 from .utils import JSONFileProcessor
 
 def home(request):
-    """Главная страница"""
+    
     return render(request, 'photo_metadata/index.html')
 
 def input_form(request):
-    """Форма ввода данных"""
+
     if request.method == 'POST':
         form = PhotoMetadataForm(request.POST)
         if form.is_valid():
-            # Сохраняем в базу данных
-            photo_metadata = form.save()
+            save_option = form.cleaned_data['save_option']
+            photo_data = form.cleaned_data.copy()
+            photo_data.pop('save_option')  
             
-            # Подготавливаем данные для экспорта в JSON
-            data = {
-                'id': photo_metadata.id,
-                'filename': photo_metadata.filename,
-                'format': photo_metadata.format,
-                'file_size': photo_metadata.file_size,
-                'width': photo_metadata.width,
-                'height': photo_metadata.height,
-                'camera_make': photo_metadata.camera_make,
-                'camera_model': photo_metadata.camera_model,
-                'exposure_time': photo_metadata.exposure_time,
-                'aperture': str(photo_metadata.aperture) if photo_metadata.aperture else None,
-                'iso': photo_metadata.iso,
-                'focal_length': str(photo_metadata.focal_length) if photo_metadata.focal_length else None,
-                'latitude': str(photo_metadata.latitude) if photo_metadata.latitude else None,
-                'longitude': str(photo_metadata.longitude) if photo_metadata.longitude else None,
-                'capture_date': photo_metadata.capture_date.isoformat() if photo_metadata.capture_date else None,
-                'description': photo_metadata.description,
-                'tags': photo_metadata.tags,
-                'created_date': photo_metadata.created_date.isoformat(),
-            }
+            file_saved = False
+            db_saved = False
+            duplicate_found = False
             
-            # Удаляем None значения
-            data = {k: v for k, v in data.items() if v is not None}
+            if save_option in ['file', 'both']:
+                file_processor = JSONFileProcessor()
+                json_filename = file_processor.generate_safe_filename(photo_data['filename'])
+                
+                data_for_json = {
+                    'filename': photo_data['filename'],
+                    'format': photo_data['format'],
+                    'file_size': photo_data['file_size'],
+                    'width': photo_data['width'],
+                    'height': photo_data['height'],
+                    'camera_make': photo_data['camera_make'],
+                    'camera_model': photo_data['camera_model'],
+                    'exposure_time': photo_data['exposure_time'],
+                    'aperture': str(photo_data['aperture']) if photo_data['aperture'] else None,
+                    'iso': photo_data['iso'],
+                    'focal_length': str(photo_data['focal_length']) if photo_data['focal_length'] else None,
+                    'latitude': str(photo_data['latitude']) if photo_data['latitude'] else None,
+                    'longitude': str(photo_data['longitude']) if photo_data['longitude'] else None,
+                    'capture_date': photo_data['capture_date'].isoformat() if photo_data['capture_date'] else None,
+                    'description': photo_data['description'],
+                    'tags': photo_data['tags'],
+                }
+                
+                data_for_json = {k: v for k, v in data_for_json.items() if v is not None}
+                file_processor.save_to_json(data_for_json, json_filename)
+                file_saved = True
             
-            # Сохраняем в JSON файл
-            file_processor = JSONFileProcessor()
-            json_filename = file_processor.generate_safe_filename(photo_metadata.filename)
-            json_path = file_processor.save_to_json(data, json_filename)
+            if save_option in ['db', 'both']:
+                try:
+                    # Проверка на дубликаты
+                    duplicate = PhotoMetadata.objects.filter(
+                        filename=photo_data['filename'],
+                        format=photo_data['format'],
+                        file_size=photo_data['file_size'],
+                        width=photo_data['width'],
+                        height=photo_data['height']
+                    ).exists()
+                    
+                    if duplicate:
+                        duplicate_found = True
+                        messages.warning(request, 'Такая запись уже существует в базе данных!')
+                    else:
+                        
+                        photo_metadata = PhotoMetadata(**photo_data)
+                        photo_metadata.save()
+                        db_saved = True
+                        
+                except IntegrityError:
+                    duplicate_found = True
+                    messages.warning(request, 'Такая запись уже существует в базе данных!')
             
-            messages.success(request, f'Данные успешно сохранены! JSON файл создан: {json_filename}')
+
+            if file_saved and db_saved:
+                messages.success(request, 'Данные успешно сохранены в файл и базу данных!')
+            elif file_saved:
+                messages.success(request, 'Данные успешно сохранены в файл JSON!')
+            elif db_saved:
+                messages.success(request, 'Данные успешно сохранены в базу данных!')
+            elif duplicate_found and file_saved:
+                messages.info(request, 'Данные сохранены только в файл (дубликат в БД)!')
+            
             return redirect('input_form')
     else:
         form = PhotoMetadataForm()
@@ -61,57 +96,79 @@ def input_form(request):
     return render(request, 'photo_metadata/input_form.html', {'form': form})
 
 def upload_file(request):
-    """Загрузка JSON файлов на сервер"""
     if request.method == 'POST':
         form = FileUploadForm(request.POST, request.FILES)
         if form.is_valid():
             uploaded_file = request.FILES['file']
             
-            # Проверяем расширение файла
             if not uploaded_file.name.lower().endswith('.json'):
                 messages.error(request, 'Пожалуйста, загружайте только JSON файлы')
                 return redirect('upload_file')
             
-            # Генерируем безопасное имя файла
             safe_filename = JSONFileProcessor.generate_safe_filename(uploaded_file.name)
             
-            # Сохраняем файл
             fs = FileSystemStorage()
             filename = fs.save(safe_filename, uploaded_file)
             file_path = fs.path(filename)
             
-            # Проверяем валидность JSON файла
             is_valid, message = JSONFileProcessor.validate_json_file(file_path)
             
             if is_valid:
-                # Сохраняем информацию о файле в базу
                 imported_file = ImportedFile(
                     file=filename,
                     is_valid=True
                 )
                 imported_file.save()
                 
-                # Парсим файл и сохраняем данные в базу
                 try:
                     file_data = JSONFileProcessor.read_json_file(file_path)
+                    records_added = 0
+                    duplicates_found = 0
                     
-                    # Обрабатываем данные (может быть список или один объект)
                     if isinstance(file_data, list):
                         for item in file_data:
-                            # Удаляем поля, которые не нужны для создания модели
                             item.pop('id', None)
                             item.pop('created_date', None)
-                            PhotoMetadata.objects.create(**item)
+                            
+                            duplicate = PhotoMetadata.objects.filter(
+                                filename=item.get('filename'),
+                                format=item.get('format'),
+                                file_size=item.get('file_size'),
+                                width=item.get('width'),
+                                height=item.get('height')
+                            ).exists()
+                            
+                            if not duplicate:
+                                PhotoMetadata.objects.create(**item)
+                                records_added += 1
+                            else:
+                                duplicates_found += 1
                     else:
                         file_data.pop('id', None)
                         file_data.pop('created_date', None)
-                        PhotoMetadata.objects.create(**file_data)
+                        
+                        duplicate = PhotoMetadata.objects.filter(
+                            filename=file_data.get('filename'),
+                            format=file_data.get('format'),
+                            file_size=file_data.get('file_size'),
+                            width=file_data.get('width'),
+                            height=file_data.get('height')
+                        ).exists()
+                        
+                        if not duplicate:
+                            PhotoMetadata.objects.create(**file_data)
+                            records_added += 1
+                        else:
+                            duplicates_found += 1
                     
-                    messages.success(request, f'Файл {uploaded_file.name} успешно загружен и обработан!')
+                    if records_added > 0:
+                        messages.success(request, f'Успешно добавлено {records_added} записей в базу данных!')
+                    if duplicates_found > 0:
+                        messages.warning(request, f'Найдено {duplicates_found} дубликатов (не добавлены в БД)')
+                    
                 except Exception as e:
                     messages.warning(request, f'Файл загружен, но возникли ошибки при обработке данных: {str(e)}')
             else:
-                # Удаляем невалидный файл
                 fs.delete(filename)
                 messages.error(request, f'JSON файл не валиден: {message}')
             
@@ -122,48 +179,191 @@ def upload_file(request):
     return render(request, 'photo_metadata/upload_file.html', {'form': form})
 
 def view_files(request):
-    """Просмотр всех JSON файлов"""
-    json_dir = 'media/json_files'
+    source = request.GET.get('source', 'files')  # Получаем параметр source
     
-    json_files = []
+    context = {'source': source}
     
-    # Получаем JSON файлы
-    if os.path.exists(json_dir):
-        for filename in os.listdir(json_dir):
-            if filename.endswith('.json'):
-                file_path = os.path.join(json_dir, filename)
-                file_size = os.path.getsize(file_path)
-                json_files.append({
-                    'name': filename,
-                    'path': file_path,
-                    'size': file_size,
-                    'url': f'/media/json_files/{filename}'
-                })
-    
-    context = {
-        'json_files': json_files,
-        'total_files': len(json_files)
-    }
+    if source == 'db':
+        # Данные из базы данных
+        db_records = PhotoMetadata.objects.all().order_by('-created_date')
+        context['db_records'] = db_records
+        
+    else:
+        # Данные из JSON файлов
+        json_files_dir = 'media/json_files'
+        json_uploads_dir = 'media/json_uploads'
+        
+        json_files = []
+     
+        if os.path.exists(json_files_dir):
+            for filename in os.listdir(json_files_dir):
+                if filename.endswith('.json'):
+                    file_path = os.path.join(json_files_dir, filename)
+                    file_size = os.path.getsize(file_path)
+                    json_files.append({
+                        'name': filename,
+                        'path': file_path,
+                        'size': file_size,
+                        'url': f'/media/json_files/{filename}',
+                        'type': 'created'
+                    })
+        
+        if os.path.exists(json_uploads_dir):
+            for filename in os.listdir(json_uploads_dir):
+                if filename.endswith('.json'):
+                    file_path = os.path.join(json_uploads_dir, filename)
+                    file_size = os.path.getsize(file_path)
+                    json_files.append({
+                        'name': filename,
+                        'path': file_path,
+                        'size': file_size,
+                        'url': f'/media/json_uploads/{filename}',
+                        'type': 'uploaded'
+                    })
+        
+        json_files.sort(key=lambda x: x['name'])
+        context['json_files'] = json_files
     
     return render(request, 'photo_metadata/view_files.html', context)
 
 def view_file_content(request, filename):
-    """Просмотр содержимого конкретного JSON файла"""
-    safe_filename = os.path.basename(filename)  # Санитайзинг имени файла
+    """Просмотр содержимого JSON файла"""
+    safe_filename = os.path.basename(filename)
     
-    file_path = os.path.join('media', 'json_files', safe_filename)
+    file_paths = [
+        os.path.join('media', 'json_files', safe_filename),
+        os.path.join('media', 'json_uploads', safe_filename)
+    ]
     
-    if not os.path.exists(file_path):
-        return HttpResponse("Файл не найден", status=404)
+    file_path = None
+    file_type = None
+    
+    for path in file_paths:
+        if os.path.exists(path):
+            file_path = path
+            if 'json_files' in path:
+                file_type = 'created'
+            else:
+                file_type = 'uploaded'
+            break
+    
+    if not file_path:
+        return HttpResponse("Файл не найден")
     
     try:
         with open(file_path, 'r', encoding='utf-8') as f:
-            content = json.load(f)
-        return JsonResponse(content, safe=False, json_dumps_params={'ensure_ascii': False, 'indent': 2})
+            content = f.read()
+        
+        context = {
+            'filename': filename,
+            'content': content,
+            'file_type': file_type,
+            'file_path': file_path
+        }
+        return render(request, 'photo_metadata/view_file_content.html', context)
+        
     except Exception as e:
-        return HttpResponse(f"Ошибка при чтении файла: {str(e)}", status=500)
+        return HttpResponse(f"Ошибка: {str(e)}")
 
 def view_database_records(request):
-    """Просмотр всех записей из базы данных"""
+    source = request.GET.get('source', 'db')  
+    
+    if source == 'files':
+        return redirect('view_files')
+    
     records = PhotoMetadata.objects.all().order_by('-created_date')
-    return render(request, 'photo_metadata/database_records.html', {'records': records})
+    
+    context = {
+        'records': records,
+        'source': source
+    }
+    return render(request, 'photo_metadata/database_records.html', context)
+
+def search_records(request):
+    """AJAX поиск по записям в базе данных"""
+    if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+        query = request.GET.get('q', '')
+        
+        if query:
+            records = PhotoMetadata.objects.filter(
+                models.Q(filename__icontains=query) |
+                models.Q(camera_make__icontains=query) |
+                models.Q(camera_model__icontains=query) |
+                models.Q(description__icontains=query) |
+                models.Q(tags__icontains=query)
+            ).order_by('-created_date')
+        else:
+            records = PhotoMetadata.objects.all().order_by('-created_date')
+
+        records_data = []
+        for record in records:
+            records_data.append({
+                'id': record.id,
+                'filename': record.filename,
+                'format': record.format,
+                'file_size': record.file_size,
+                'width': record.width,
+                'height': record.height,
+                'camera_make': record.camera_make,
+                'camera_model': record.camera_model,
+                'description': record.description,
+                'created_date': record.created_date.strftime('%d.%m.%Y %H:%M')
+            })
+        
+        return JsonResponse({'records': records_data})
+    
+    return JsonResponse({'error': 'Invalid request'})
+
+def edit_record(request, record_id):
+ 
+    record = get_object_or_404(PhotoMetadata, id=record_id)
+    
+    if request.method == 'POST':
+        form = EditPhotoMetadataForm(request.POST, instance=record)
+        if form.is_valid():
+            try:
+                form.save()
+                messages.success(request, 'Запись успешно обновлена!')
+                return redirect('database_records')
+            except IntegrityError:
+                messages.error(request, 'Ошибка: такая запись уже существует в базе данных!')
+    else:
+        form = EditPhotoMetadataForm(instance=record)
+    
+    context = {
+        'form': form,
+        'record': record
+    }
+    return render(request, 'photo_metadata/edit_record.html', context)
+
+def delete_record(request, record_id):
+
+    record = get_object_or_404(PhotoMetadata, id=record_id)
+    
+    if request.method == 'POST':
+        record.delete()
+        messages.success(request, 'Запись успешно удалена!')
+        return redirect('database_records')
+    
+    context = {
+        'record': record
+    }
+    return render(request, 'photo_metadata/delete_record.html', context)
+def view_database_records(request):
+    records = PhotoMetadata.objects.all().order_by('-created_date')
+
+    search_query = request.GET.get('q', '')
+    if search_query:
+        records = records.filter(
+            models.Q(filename__icontains=search_query) |
+            models.Q(camera_make__icontains=search_query) |
+            models.Q(camera_model__icontains=search_query) |
+            models.Q(description__icontains=search_query) |
+            models.Q(tags__icontains=search_query)
+        )
+    
+    context = {
+        'records': records,
+        'search_query': search_query
+    }
+    return render(request, 'photo_metadata/database_records.html', context)

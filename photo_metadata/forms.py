@@ -3,13 +3,26 @@ from .models import PhotoMetadata
 import re
 
 class PhotoMetadataForm(forms.ModelForm):
+    SAVE_CHOICES = [
+        ('file', 'Сохранить в файл JSON'),
+        ('db', 'Сохранить в базу данных'),
+        ('both', 'Сохранить в файл и базу данных'),
+    ]
+    
+    save_option = forms.ChoiceField(
+        choices=SAVE_CHOICES,
+        widget=forms.RadioSelect(attrs={'class': 'form-check-input'}),
+        label='Куда сохранить данные?',
+        initial='both'
+    )
+    
     class Meta:
         model = PhotoMetadata
         fields = [
             'filename', 'format', 'file_size', 'width', 'height',
             'camera_make', 'camera_model', 'exposure_time', 'aperture',
             'iso', 'focal_length', 'latitude', 'longitude',
-            'capture_date', 'description', 'tags'
+            'capture_date', 'description', 'tags', 'save_option'
         ]
         widgets = {
             'filename': forms.TextInput(attrs={'class': 'form-control'}),
@@ -53,24 +66,6 @@ class PhotoMetadataForm(forms.ModelForm):
         if height <= 0:
             raise forms.ValidationError("Высота должна быть положительным числом")
         return height
-    
-    def clean_iso(self):
-        iso = self.cleaned_data.get('iso')
-        if iso and iso <= 0:
-            raise forms.ValidationError("ISO должно быть положительным числом")
-        return iso
-    
-    def clean_latitude(self):
-        latitude = self.cleaned_data.get('latitude')
-        if latitude and (latitude < -90 or latitude > 90):
-            raise forms.ValidationError("Широта должна быть в диапазоне от -90 до 90")
-        return latitude
-    
-    def clean_longitude(self):
-        longitude = self.cleaned_data.get('longitude')
-        if longitude and (longitude < -180 or longitude > 180):
-            raise forms.ValidationError("Долгота должна быть в диапазоне от -180 до 180")
-        return longitude
 
 class FileUploadForm(forms.Form):
     file = forms.FileField(
@@ -78,3 +73,31 @@ class FileUploadForm(forms.Form):
         widget=forms.FileInput(attrs={'class': 'form-control', 'accept': '.json'}),
         help_text="Поддерживаемый формат: JSON"
     )
+
+class EditPhotoMetadataForm(forms.ModelForm):
+    class Meta:
+        model = PhotoMetadata
+        fields = [
+            'filename', 'format', 'file_size', 'width', 'height',
+            'camera_make', 'camera_model', 'exposure_time', 'aperture',
+            'iso', 'focal_length', 'latitude', 'longitude',
+            'capture_date', 'description', 'tags'
+        ]
+        widgets = {
+            'filename': forms.TextInput(attrs={'class': 'form-control'}),
+            'format': forms.Select(attrs={'class': 'form-control'}),
+            'file_size': forms.NumberInput(attrs={'class': 'form-control'}),
+            'width': forms.NumberInput(attrs={'class': 'form-control'}),
+            'height': forms.NumberInput(attrs={'class': 'form-control'}),
+            'camera_make': forms.TextInput(attrs={'class': 'form-control'}),
+            'camera_model': forms.TextInput(attrs={'class': 'form-control'}),
+            'exposure_time': forms.TextInput(attrs={'class': 'form-control', 'placeholder': '1/125'}),
+            'aperture': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.1'}),
+            'iso': forms.NumberInput(attrs={'class': 'form-control'}),
+            'focal_length': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.1'}),
+            'latitude': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.000001'}),
+            'longitude': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.000001'}),
+            'capture_date': forms.DateTimeInput(attrs={'class': 'form-control', 'type': 'datetime-local'}),
+            'description': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
+            'tags': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'пейзаж, природа, лето'}),
+        }

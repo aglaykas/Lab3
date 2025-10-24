@@ -1,0 +1,187 @@
+{% extends 'base.html' %}
+
+{% block title %}Редактирование записи - {{ block.super }}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8 mx-auto">
+        <h2 class="mb-4">
+            <i class="fas fa-edit me-2"></i>Редактирование записи
+        </h2>
+        
+        <!-- Информация о записи -->
+        <div class="card mb-4">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0">Информация о записи</h5>
+            </div>
+            <div class="card-body">
+                <p><strong>ID:</strong> {{ record.id }}</p>
+                <p><strong>Создана:</strong> {{ record.created_date|date:"d.m.Y H:i" }}</p>
+            </div>
+        </div>
+        
+        <form method="post" novalidate>
+            {% csrf_token %}
+            
+            <!-- Основная информация -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5>Основная информация</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                {{ form.filename.label_tag }}
+                                {{ form.filename }}
+                                {% if form.filename.errors %}
+                                    <div class="text-danger">{{ form.filename.errors }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                {{ form.format.label_tag }}
+                                {{ form.format }}
+                                {% if form.format.errors %}
+                                    <div class="text-danger">{{ form.format.errors }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                {{ form.file_size.label_tag }}
+                                {{ form.file_size }}
+                                {% if form.file_size.errors %}
+                                    <div class="text-danger">{{ form.file_size.errors }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                {{ form.width.label_tag }}
+                                {{ form.width }}
+                                {% if form.width.errors %}
+                                    <div class="text-danger">{{ form.width.errors }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                {{ form.height.label_tag }}
+                                {{ form.height }}
+                                {% if form.height.errors %}
+                                    <div class="text-danger">{{ form.height.errors }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Информация о камере -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5>Информация о камере</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                {{ form.camera_make.label_tag }}
+                                {{ form.camera_make }}
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                {{ form.camera_model.label_tag }}
+                                {{ form.camera_model }}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-3">
+                            <div class="mb-3">
+                                {{ form.exposure_time.label_tag }}
+                                {{ form.exposure_time }}
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="mb-3">
+                                {{ form.aperture.label_tag }}
+                                {{ form.aperture }}
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="mb-3">
+                                {{ form.iso.label_tag }}
+                                {{ form.iso }}
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="mb-3">
+                                {{ form.focal_length.label_tag }}
+                                {{ form.focal_length }}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Дополнительная информация -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5>Дополнительная информация</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                {{ form.latitude.label_tag }}
+                                {{ form.latitude }}
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                {{ form.longitude.label_tag }}
+                                {{ form.longitude }}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        {{ form.capture_date.label_tag }}
+                        {{ form.capture_date }}
+                    </div>
+                    
+                    <div class="mb-3">
+                        {{ form.description.label_tag }}
+                        {{ form.description }}
+                    </div>
+                    
+                    <div class="mb-3">
+                        {{ form.tags.label_tag }}
+                        {{ form.tags }}
+                    </div>
+                </div>
+            </div>
+
+            <div class="d-flex gap-2">
+                <button type="submit" class="btn btn-success">
+                    <i class="fas fa-save me-2"></i>Сохранить изменения
+                </button>
+                <a href="{% url 'database_records' %}" class="btn btn-secondary">
+                    <i class="fas fa-times me-2"></i>Отмена
+                </a>
+                <a href="{% url 'delete_record' record.id %}" class="btn btn-danger">
+                    <i class="fas fa-trash me-2"></i>Удалить
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

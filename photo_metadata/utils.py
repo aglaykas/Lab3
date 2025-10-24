@@ -7,19 +7,16 @@ from .models import PhotoMetadata
 class JSONFileProcessor:
     @staticmethod
     def generate_safe_filename(original_name):
-        """Генерирует безопасное имя файла"""
         ext = 'json'
         filename = f"{uuid.uuid4().hex}.{ext}"
         return filename
     
     @staticmethod
     def validate_json_file(file_path):
-        """Проверяет валидность JSON файла"""
         try:
             with open(file_path, 'r', encoding='utf-8') as f:
                 data = json.load(f)
-            
-            # Проверяем структуру данных
+        
             if isinstance(data, list):
                 for item in data:
                     if not JSONFileProcessor._validate_photo_metadata(item):
@@ -38,7 +35,6 @@ class JSONFileProcessor:
     
     @staticmethod
     def _validate_photo_metadata(data):
-        """Проверяет структуру метаданных фотографии"""
         required_fields = ['filename', 'format', 'file_size', 'width', 'height']
         
         if not isinstance(data, dict):
@@ -52,7 +48,6 @@ class JSONFileProcessor:
     
     @staticmethod
     def save_to_json(data, filename):
-        """Сохраняет данные в JSON файл"""
         file_path = os.path.join('media', 'json_files', filename)
         os.makedirs(os.path.dirname(file_path), exist_ok=True)
         
@@ -63,6 +58,5 @@ class JSONFileProcessor:
     
     @staticmethod
     def read_json_file(file_path):
-        """Читает JSON файл"""
         with open(file_path, 'r', encoding='utf-8') as f:
             return json.load(f)

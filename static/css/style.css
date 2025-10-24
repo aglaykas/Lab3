@@ -74,3 +74,64 @@
     font-size: 0.875rem;
     margin-top: 0.25rem;
 }
+/* Стили для навигации */
+.breadcrumb {
+    background: rgba(255, 255, 255, 0.9);
+    border-radius: 10px;
+    padding: 0.75rem 1rem;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.breadcrumb-item a {
+    text-decoration: none;
+    color: var(--primary-color);
+    font-weight: 500;
+}
+
+.breadcrumb-item a:hover {
+    color: var(--secondary-color);
+}
+
+.breadcrumb-item.active {
+    color: var(--dark-color);
+    font-weight: 600;
+}
+
+/* Стили для кнопок навигации */
+.btn-group .btn {
+    margin: 0 2px;
+    border-radius: 20px;
+}
+
+/* Адаптивность для мобильных */
+@media (max-width: 768px) {
+    .btn-group {
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+    
+    .btn-group .btn {
+        margin: 2px;
+        font-size: 0.8rem;
+    }
+    
+    .breadcrumb {
+        font-size: 0.9rem;
+    }
+}
+
+/* Анимации для кнопок навигации */
+.nav-panel {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    border-left: 4px solid var(--primary-color);
+}
+
+.btn-nav {
+    transition: all 0.3s ease;
+    border: 2px solid transparent;
+}
+
+.btn-nav:hover {
+    transform: translateY(-2px);
+    border-color: var(--primary-color);
+}

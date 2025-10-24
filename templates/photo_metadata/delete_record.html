@@ -1,0 +1,60 @@
+{% extends 'base.html' %}
+
+{% block title %}Удаление записи - {{ block.super }}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-6 mx-auto">
+        <h2 class="mb-4 text-danger">
+            <i class="fas fa-trash me-2"></i>Удаление записи
+        </h2>
+        
+        <div class="card">
+            <div class="card-header bg-danger text-white">
+                <h5 class="mb-0">Подтверждение удаления</h5>
+            </div>
+            <div class="card-body">
+                <p class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    <strong>Внимание!</strong> Это действие нельзя отменить.
+                </p>
+                
+                <p>Вы уверены, что хотите удалить эту запись?</p>
+                
+                <div class="card mb-3">
+                    <div class="card-body">
+                        <h6>Информация о записи:</h6>
+                        <p><strong>ID:</strong> {{ record.id }}</p>
+                        <p><strong>Файл:</strong> {{ record.filename }}</p>
+                        <p><strong>Формат:</strong> {{ record.format }}</p>
+                        <p><strong>Разрешение:</strong> {{ record.width }}×{{ record.height }}</p>
+                        <p><strong>Размер:</strong> {{ record.file_size }} байт</p>
+                        {% if record.camera_make or record.camera_model %}
+                            <p><strong>Камера:</strong> {{ record.camera_make }} {{ record.camera_model }}</p>
+                        {% endif %}
+                        {% if record.description %}
+                            <p><strong>Описание:</strong> {{ record.description|truncatewords:10 }}</p>
+                        {% endif %}
+                        <p><strong>Создана:</strong> {{ record.created_date|date:"d.m.Y H:i" }}</p>
+                    </div>
+                </div>
+                
+                <form method="post">
+                    {% csrf_token %}
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-danger">
+                            <i class="fas fa-trash me-2"></i>Да, удалить
+                        </button>
+                        <a href="{% url 'database_records' %}" class="btn btn-secondary">
+                            <i class="fas fa-times me-2"></i>Отмена
+                        </a>
+                        <a href="{% url 'edit_record' record.id %}" class="btn btn-warning">
+                            <i class="fas fa-edit me-2"></i>Редактировать
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
