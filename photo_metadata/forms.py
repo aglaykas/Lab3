@@ -42,7 +42,17 @@ class PhotoMetadataForm(forms.ModelForm):
             'description': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
             'tags': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'пейзаж, природа, лето'}),
         }
-    
+    def clean_filename(self):
+        filename = self.cleaned_data['filename']
+        
+        if self.instance.pk is None:  
+            if PhotoMetadata.objects.filter(filename=filename).exists():
+                raise forms.ValidationError("Запись с таким именем файла уже существует")
+        else:  
+            if PhotoMetadata.objects.filter(filename=filename).exclude(pk=self.instance.pk).exists():
+                raise forms.ValidationError("Запись с таким именем файла уже существует")
+        
+        return filename
     def clean_filename(self):
         filename = self.cleaned_data['filename']
         if not re.match(r'^[\w\-. ]+$', filename):

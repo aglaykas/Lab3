@@ -14,9 +14,7 @@ from .utils import JSONFileProcessor
 def home(request):
     
     return render(request, 'photo_metadata/index.html')
-
 def input_form(request):
-
     if request.method == 'POST':
         form = PhotoMetadataForm(request.POST)
         if form.is_valid():
@@ -28,11 +26,12 @@ def input_form(request):
             db_saved = False
             duplicate_found = False
             
-            if save_option in ['file', 'both']:
-                file_processor = JSONFileProcessor()
-                json_filename = file_processor.generate_safe_filename(photo_data['filename'])
-                
-                data_for_json = {
+            try:
+                if save_option in ['file', 'both']:
+                    file_processor = JSONFileProcessor()
+                    json_filename = file_processor.generate_safe_filename(photo_data['filename'])
+                    
+                    data_for_json = {
                     'filename': photo_data['filename'],
                     'format': photo_data['format'],
                     'file_size': photo_data['file_size'],
@@ -49,37 +48,29 @@ def input_form(request):
                     'capture_date': photo_data['capture_date'].isoformat() if photo_data['capture_date'] else None,
                     'description': photo_data['description'],
                     'tags': photo_data['tags'],
-                }
-                
-                data_for_json = {k: v for k, v in data_for_json.items() if v is not None}
-                file_processor.save_to_json(data_for_json, json_filename)
-                file_saved = True
-            
-            if save_option in ['db', 'both']:
-                try:
-                    # Проверка на дубликаты
-                    duplicate = PhotoMetadata.objects.filter(
-                        filename=photo_data['filename'],
-                        format=photo_data['format'],
-                        file_size=photo_data['file_size'],
-                        width=photo_data['width'],
-                        height=photo_data['height']
-                    ).exists()
+                    }
                     
-                    if duplicate:
-                        duplicate_found = True
-                        messages.warning(request, 'Такая запись уже существует в базе данных!')
-                    else:
-                        
-                        photo_metadata = PhotoMetadata(**photo_data)
-                        photo_metadata.save()
-                        db_saved = True
-                        
-                except IntegrityError:
-                    duplicate_found = True
-                    messages.warning(request, 'Такая запись уже существует в базе данных!')
+                    data_for_json = {k: v for k, v in data_for_json.items() if v is not None}
+                    file_processor.save_to_json(data_for_json, json_filename)
+                    file_saved = True
+                
+                if save_option in ['db', 'both']:
+                    # Убираем ручную проверку дубликатов - теперь это делает форма
+                    photo_metadata = PhotoMetadata(**photo_data)
+                    photo_metadata.full_clean()  # Дополнительная валидация
+                    photo_metadata.save()
+                    db_saved = True
+                    
+            except ValidationError as e:
+                # Обрабатываем ошибки валидации модели
+                duplicate_found = True
+                messages.error(request, f'Ошибка валидации: {e}')
+            except IntegrityError:
+                # Ловим ошибку уникальности от базы данных
+                duplicate_found = True
+                messages.error(request, 'Запись с таким именем файла уже существует в базе данных!')
             
-
+            # Сообщения об успехе/ошибке
             if file_saved and db_saved:
                 messages.success(request, 'Данные успешно сохранены в файл и базу данных!')
             elif file_saved:
@@ -94,6 +85,7 @@ def input_form(request):
         form = PhotoMetadataForm()
     
     return render(request, 'photo_metadata/input_form.html', {'form': form})
+
 
 def upload_file(request):
     if request.method == 'POST':
@@ -179,17 +171,15 @@ def upload_file(request):
     return render(request, 'photo_metadata/upload_file.html', {'form': form})
 
 def view_files(request):
-    source = request.GET.get('source', 'files')  # Получаем параметр source
+    source = request.GET.get('source', 'files')  
     
     context = {'source': source}
     
     if source == 'db':
-        # Данные из базы данных
         db_records = PhotoMetadata.objects.all().order_by('-created_date')
         context['db_records'] = db_records
         
     else:
-        # Данные из JSON файлов
         json_files_dir = 'media/json_files'
         json_uploads_dir = 'media/json_uploads'
         
@@ -227,7 +217,6 @@ def view_files(request):
     return render(request, 'photo_metadata/view_files.html', context)
 
 def view_file_content(request, filename):
-    """Просмотр содержимого JSON файла"""
     safe_filename = os.path.basename(filename)
     
     file_paths = [
@@ -265,22 +254,7 @@ def view_file_content(request, filename):
     except Exception as e:
         return HttpResponse(f"Ошибка: {str(e)}")
 
-def view_database_records(request):
-    source = request.GET.get('source', 'db')  
-    
-    if source == 'files':
-        return redirect('view_files')
-    
-    records = PhotoMetadata.objects.all().order_by('-created_date')
-    
-    context = {
-        'records': records,
-        'source': source
-    }
-    return render(request, 'photo_metadata/database_records.html', context)
-
 def search_records(request):
-    """AJAX поиск по записям в базе данных"""
     if request.headers.get('x-requested-with') == 'XMLHttpRequest':
         query = request.GET.get('q', '')
         
@@ -315,7 +289,6 @@ def search_records(request):
     return JsonResponse({'error': 'Invalid request'})
 
 def edit_record(request, record_id):
- 
     record = get_object_or_404(PhotoMetadata, id=record_id)
     
     if request.method == 'POST':
@@ -326,7 +299,9 @@ def edit_record(request, record_id):
                 messages.success(request, 'Запись успешно обновлена!')
                 return redirect('database_records')
             except IntegrityError:
-                messages.error(request, 'Ошибка: такая запись уже существует в базе данных!')
+                messages.error(request, 'Ошибка: запись с таким именем файла уже существует!')
+            except ValidationError as e:
+                messages.error(request, f'Ошибка валидации: {e}')
     else:
         form = EditPhotoMetadataForm(instance=record)
     
@@ -351,7 +326,8 @@ def delete_record(request, record_id):
     return render(request, 'photo_metadata/delete_record.html', context)
 def view_database_records(request):
     records = PhotoMetadata.objects.all().order_by('-created_date')
-
+    
+    
     search_query = request.GET.get('q', '')
     if search_query:
         records = records.filter(
@@ -367,3 +343,39 @@ def view_database_records(request):
         'search_query': search_query
     }
     return render(request, 'photo_metadata/database_records.html', context)
+    
+def view_record(request, record_id):
+    record = get_object_or_404(PhotoMetadata, id=record_id)
+
+    record_data = {
+        'id': record.id,
+        'filename': record.filename,
+        'format': record.format,
+        'file_size': record.file_size,
+        'width': record.width,
+        'height': record.height,
+        'camera_make': record.camera_make,
+        'camera_model': record.camera_model,
+        'exposure_time': record.exposure_time,
+        'aperture': str(record.aperture) if record.aperture else None,
+        'iso': record.iso,
+        'focal_length': str(record.focal_length) if record.focal_length else None,
+        'latitude': str(record.latitude) if record.latitude else None,
+        'longitude': str(record.longitude) if record.longitude else None,
+        'capture_date': record.capture_date.isoformat() if record.capture_date else None,
+        'description': record.description,
+        'tags': record.tags,
+        'created_date': record.created_date.isoformat(),
+    }
+    
+    record_data = {k: v for k, v in record_data.items() if v is not None}
+
+    formatted_json = json.dumps(record_data, ensure_ascii=False, indent=2)
+    
+    context = {
+        'record': record,
+        'content': formatted_json,
+        'title': f'Запись: {record.filename}'
+    }
+    
+    return render(request, 'photo_metadata/view_record.html', context)

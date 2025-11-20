@@ -12,7 +12,7 @@ class PhotoMetadata(models.Model):
         ('TIFF', 'TIFF'),
     ]
     
-    filename = models.CharField(max_length=255, verbose_name="Имя файла")
+    filename = models.CharField(max_length=255,unique=True, verbose_name="Имя файла")
     format = models.CharField(max_length=10, choices=FORMAT_CHOICES, verbose_name="Формат")
     file_size = models.PositiveIntegerField(
         verbose_name="Размер файла (байт)",
@@ -42,7 +42,7 @@ class PhotoMetadata(models.Model):
     class Meta:
         verbose_name = "Метаданные фотографии"
         verbose_name_plural = "Метаданные фотографий"
-        unique_together = ['filename', 'format', 'file_size', 'width', 'height']  # Проверка дубликатов
+        unique_together = ['filename', 'format', 'file_size', 'width', 'height']  
     
     def __str__(self):
         return f"{self.filename} ({self.width}x{self.height})"
@@ -51,6 +51,9 @@ def get_upload_path(instance, filename):
     ext = filename.split('.')[-1]
     filename = f"{uuid.uuid4().hex}.{ext}"
     return os.path.join('json_uploads', filename)
+def clean(self):
+    if PhotoMetadata.objects.filter(filename=self.filename).exclude(id=self.id).exists():
+        raise ValidationError({'filename': 'Запись с таким именем файла уже существует'})
 
 class ImportedFile(models.Model):
     file = models.FileField(upload_to=get_upload_path, verbose_name="Файл JSON")

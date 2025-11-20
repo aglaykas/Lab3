@@ -8,8 +8,6 @@
         <h2 class="mb-4">
             <i class="fas fa-edit me-2"></i>Редактирование записи
         </h2>
-        
-        <!-- Информация о записи -->
         <div class="card mb-4">
             <div class="card-header bg-info text-white">
                 <h5 class="mb-0">Информация о записи</h5>
@@ -23,7 +21,6 @@
         <form method="post" novalidate>
             {% csrf_token %}
             
-            <!-- Основная информация -->
             <div class="card mb-4">
                 <div class="card-header">
                     <h5>Основная информация</h5>
@@ -82,7 +79,6 @@
                 </div>
             </div>
 
-            <!-- Информация о камере -->
             <div class="card mb-4">
                 <div class="card-header">
                     <h5>Информация о камере</h5>
@@ -131,8 +127,7 @@
                     </div>
                 </div>
             </div>
-
-            <!-- Дополнительная информация -->
+            
             <div class="card mb-4">
                 <div class="card-header">
                     <h5>Дополнительная информация</h5>

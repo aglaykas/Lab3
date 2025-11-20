@@ -33,8 +33,17 @@ searchInput.addEventListener('input', function() {
                         <td>${r.description || '-'}</td>
                         <td>${r.created_date}</td>
                         <td>
-                            <a href="/edit/${r.id}/" class="btn btn-sm btn-warning">✏️</a>
-                            <a href="/delete/${r.id}/" class="btn btn-sm btn-danger">🗑️</a>
+                            <div class="btn-group btn-group-sm">
+                                <a href="/view_record/${r.id}/" class="btn btn-info" title="Просмотреть">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                                <a href="/edit/${r.id}/" class="btn btn-warning" title="Редактировать">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                                <a href="/delete/${r.id}/" class="btn btn-danger" title="Удалить">
+                                    <i class="fas fa-trash"></i>
+                                </a>
+                            </div>
                         </td>
                     </tr>
                 `).join('');
@@ -137,6 +146,9 @@ searchInput.addEventListener('input', function() {
                                         </td>
                                         <td>
                                             <div class="btn-group btn-group-sm">
+                                                <a href="{% url 'view_record' record.id %}" class="btn btn-info" title="Просмотреть">
+                                                    <i class="fas fa-eye"></i>
+                                                </a>
                                                 <a href="{% url 'edit_record' record.id %}" class="btn btn-warning" title="Редактировать">
                                                     <i class="fas fa-edit"></i>
                                                 </a>

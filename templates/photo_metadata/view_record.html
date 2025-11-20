@@ -1,0 +1,69 @@
+{% extends 'base.html' %}
+
+{% block title %}Просмотр записи - {{ record.filename }}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h2 class="mb-4">
+            <i class="fas fa-eye me-2"></i>Просмотр записи
+        </h2>
+        
+        <div class="card mb-4">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0">
+                    <i class="fas fa-info-circle me-2"></i>Информация о записи
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <p><strong>ID:</strong> {{ record.id }}</p>
+                        <p><strong>Файл:</strong> {{ record.filename }}</p>
+                        <p><strong>Формат:</strong> {{ record.format }}</p>
+                        <p><strong>Размер:</strong> {{ record.file_size }} байт</p>
+                        <p><strong>Разрешение:</strong> {{ record.width }}×{{ record.height }}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <p><strong>Камера:</strong> {{ record.camera_make }} {{ record.camera_model }}</p>
+                        <p><strong>Создана:</strong> {{ record.created_date|date:"d.m.Y H:i" }}</p>
+                        {% if record.description %}
+                            <p><strong>Описание:</strong> {{ record.description }}</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    <i class="fas fa-code me-2"></i>JSON представление
+                </h5>
+                <div>
+                    <button id="copyButton" class="btn btn-light btn-sm">
+                        <i class="fas fa-copy me-1"></i>Копировать
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                <pre class="bg-light p-3 border rounded" style="max-height: 500px; overflow-y: auto;"><code id="jsonContent">{{ content }}</code></pre>
+            </div>
+        </div>
+
+    
+        <div class="mt-4">
+            <a href="{% url 'database_records' %}" class="btn btn-secondary">
+                <i class="fas fa-arrow-left me-2"></i>Назад к таблице
+            </a>
+            <a href="{% url 'edit_record' record.id %}" class="btn btn-warning">
+                <i class="fas fa-edit me-2"></i>Редактировать
+            </a>
+            <a href="{% url 'delete_record' record.id %}" class="btn btn-danger">
+                <i class="fas fa-trash me-2"></i>Удалить
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
